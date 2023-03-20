@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
@@ -51,6 +52,57 @@ class TarifFragment : Fragment() {
 
         binding.imageView.setOnClickListener{
             gorselSec(it)
+        }
+
+        arguments?.let {
+
+            var gelenbilgi = TarifFragmentArgs.fromBundle(it).bilgi
+            if(gelenbilgi.equals("menudengeldim")){
+                //yeni bir yemek eklemeye geldi
+                binding.yemekIsmiText.setText("")
+                binding.yemekMalzemeText.setText("")
+                binding.button.visibility = View.VISIBLE
+
+                val gorselSecmeArkaPlani = BitmapFactory.decodeResource(context?.resources,R.drawable.gorselsecimi)
+                binding.imageView.setImageBitmap(gorselSecmeArkaPlani)
+
+            }else{
+                //daha önce oluşturulan yemeği görmeye geldi
+                binding.button.visibility = View.INVISIBLE
+
+                val secilenId = TarifFragmentArgs.fromBundle(it).id
+                context?.let {
+                    try {
+
+                        val db = it.openOrCreateDatabase("Yemekler",Context.MODE_PRIVATE,null)
+                        val cursor = db.rawQuery("Select * From yemekler Where id = ?", arrayOf(secilenId.toString()))
+
+                        val yemekIsmiIndex = cursor.getColumnIndex("yemekismi")
+                        val yemekMalzemeIndex = cursor.getColumnIndex("yemekmalzemesi")
+                        val yemekGorseli = cursor.getColumnIndex("gorsel")
+
+                        while (cursor.moveToNext()){
+                            binding.yemekIsmiText.setText(cursor.getString(yemekIsmiIndex))
+                            binding.yemekMalzemeText.setText(cursor.getString(yemekMalzemeIndex))
+
+                            val byteDizisi = cursor.getBlob(yemekGorseli)
+                            val bitmap = BitmapFactory.decodeByteArray(byteDizisi,0,byteDizisi.size)
+                            binding.imageView.setImageBitmap(bitmap)
+
+
+                        }
+
+                        cursor.close()
+
+                    }catch (e:Exception){
+                        e.printStackTrace()
+                    }
+
+                }
+
+
+            }
+
         }
 
     }
@@ -159,9 +211,6 @@ class TarifFragment : Fragment() {
 
 
 
-    private fun requestPermissions() {
-        TODO("Not yet implemented")
-    }
 
     fun kucukBitmapOlustur(kullanicininSectigiBitmap : Bitmap, maximumBoyut : Int): Bitmap{
 
@@ -170,16 +219,16 @@ class TarifFragment : Fragment() {
 
         val bitmapOrani : Double = width.toDouble() / height.toDouble()
 
-        if(bitmapOrani>1){
+        if(bitmapOrani > 1){
             //görsel yatay
             width = maximumBoyut
-            val kisaltilmisHeight = width/maximumBoyut
-            height = kisaltilmisHeight
+            val kisaltilmisHeight = width/bitmapOrani
+            height = kisaltilmisHeight.toInt()
         }else{
             //görsel dikey
             height = maximumBoyut
-            val kisaltilmisWidth = height * maximumBoyut
-            width = kisaltilmisWidth
+            val kisaltilmisWidth = height * bitmapOrani
+            width = kisaltilmisWidth.toInt()
         }
 
         return Bitmap.createScaledBitmap(kullanicininSectigiBitmap,width,height,true)
